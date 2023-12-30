@@ -1,0 +1,451 @@
+import tkinter as tk
+from tkinter import ttk, filedialog, Canvas, messagebox
+from PIL import Image, ImageTk
+
+
+def avm_preoperative_planning(data):
+    surgical_plan = []
+    
+
+    # Initial steps
+    surgical_plan.append("Step 1: Patient Positioning")
+    surgical_plan.append("  - Place the patient in supine position with the head rotated to the contralateral side.")
+
+   # Anatomic Location
+    surgical_plan.append("Step 2: Assess Anatomic Location")
+    anatomic_location = data['Anatomic Location']
+    if anatomic_location in ["Precentral gyrus", "Postcentral gyrus"]:
+        surgical_plan.append("  - Utilize neuronavigation to delineate eloquent cortex and subcortical pathways.")
+    if anatomic_location in ["Superior frontal gyrus", "Middle frontal gyrus", "Inferior frontal gyrus"]:
+        surgical_plan.append("  - Consider using awake craniotomy techniques for better cortical mapping.")
+    if anatomic_location in ["Superior parietal lobule", "Inferior parietal lobule"]:
+        surgical_plan.append("  - Perform intraoperative somatosensory evoked potentials (SSEP) monitoring.")
+    if anatomic_location in ["Superior temporal gyrus", "Middle temporal gyrus", "Inferior temporal gyrus"]:
+        surgical_plan.append("  - Use auditory evoked potentials for monitoring.")
+    if anatomic_location in ["Superior occipital gyrus", "Middle occipital gyrus", "Inferior occipital gyrus"]:
+        surgical_plan.append("  - Consider visual evoked potentials for monitoring.")
+
+
+    
+    # Surgical Approach & Craniotomy
+    surgical_plan.append("Step 3: Perform Craniotomy")
+    surgical_approach = data['Surgical Approach']
+    if surgical_approach == "Pterional craniotomy":
+        surgical_plan.append("  - Perform a pterional craniotomy.")
+        surgical_plan.append("  - Create a curvilinear skin incision beginning at the zygomatic arch and extending towards the contralateral side.")
+        surgical_plan.append("  - Elevate the temporalis muscle and perform craniotomy.")
+        surgical_plan.append("  - Carefully open the dura in a semilunar fashion and retract to expose the surgical field.")
+
+    # Arterial Clipping or Embolization
+    surgical_plan.append("Step 4: Arterial Management")
+    feeding_artery = data['Feeding Arteries - Internal Carotid Artery Branch']
+    if feeding_artery in ["Anterior cerebral artery", "Middle cerebral artery"]:
+        surgical_plan.append(f"  - Identify the {feeding_artery} using Doppler ultrasound or intraoperative angiography.")
+        surgical_plan.append(f"  - Temporarily clip the {feeding_artery} to reduce blood flow to the AVM nidus.")
+
+    # Resection of AVM
+    surgical_plan.append("Step 5: AVM Resection")
+    surgical_plan.append("  - Use microsurgical techniques to carefully dissect the AVM nidus away from the surrounding brain tissue.")
+    surgical_plan.append("  - Employ electrocautery for hemostasis.")
+    
+    # Venous Management
+    surgical_plan.append("Step 6: Venous Management")
+    draining_vein = data['Draining Veins Pathway (Sinuses)']
+    if draining_vein in ["Cavernous sinuses", "Confluence of sinuses"]:
+        surgical_plan.append(f"  - Avoid early coagulation of the {draining_vein} to prevent venous hypertension.")
+        surgical_plan.append(f"  - Consider rerouting or stenting of the {draining_vein} if required.")
+    
+    # Closure
+    surgical_plan.append("Step 7: Closure")
+    surgical_plan.append("  - Ensure hemostasis is achieved.")
+    surgical_plan.append("  - Close the dura in a watertight fashion.")
+    surgical_plan.append("  - Replace the bone flap and secure it with titanium plates and screws.")
+    surgical_plan.append("  - Close the layers of the scalp.")
+    
+    # Post-Operative Care
+    surgical_plan.append("Step 8: Post-Operative Care")
+    
+
+    return {
+        "Surgical Plan": surgical_plan,
+        
+    }
+
+def calculate_risks_and_prognosis(data):
+    # Initialize variables for risk calculations
+    surgery_risk = 0
+    hemorrhage_risk = 0
+    
+    # Calculate Surgery Risk
+    age_factor = 2 if int(data['Patient Age']) >= 40 else 1
+    critical_region_factor = 2 if data['Anatomic Location'] in ["Precentral gyrus", "Postcentral gyrus", "Superior temporal gyrus", "Middle temporal gyrus"] else 1
+    spetzler_grade = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}[data['Spetzler-Martin Grade']]
+    
+    surgery_risk = (spetzler_grade * 0.4 + age_factor * 0.3 + critical_region_factor * 0.3) / 3
+    
+    # Calculate Risk of Hemorrhage
+    anatomic_location_factor = 2 if data['Anatomic Location'] in ["Precentral gyrus", "Postcentral gyrus", "Superior temporal gyrus", "Middle temporal gyrus"] else 1
+    feeding_arteries_factor = 2 if data['Feeding Arteries - Internal Carotid Artery Branch'] in ["Anterior cerebral artery", "Middle cerebral artery"] else 1
+    aneurysm_factor = 2 if data['Aneurysm Location'] != "None" else 1
+    
+    hemorrhage_risk = (anatomic_location_factor * 0.5 + feeding_arteries_factor * 0.3 + aneurysm_factor * 0.2) / 3
+    
+    # Convert to percentages and round to two decimal places for displaying
+    surgery_risk_percent = round(surgery_risk * 100, 2)
+    hemorrhage_risk_percent = round(hemorrhage_risk * 100, 2)
+    
+    return {
+        'Surgery Risk': surgery_risk_percent,
+        'Risk of Hemorrhage': hemorrhage_risk_percent,
+    }
+
+# Backend function to process the data
+def submit_data():
+    if not all([location_var.get(), ica_segment_var.get(), ica_branch_var.get(), eca_branch_var.get(), listbox_complications.curselection(), spetzler_grade_var.get()]):
+        messagebox.showerror("Error", "Please fill in all necessary fields!")
+        return
+    
+    data = {
+        'Patient Age': age_var.get(),
+        'Anatomic Location': location_var.get(),
+        'Feeding Arteries - Internal Carotid Artery Segment': ica_segment_var.get(),
+        'Feeding Arteries - Internal Carotid Artery Branch': ica_branch_var.get(),
+        'Feeding Arteries - External Carotid Artery Branch': eca_branch_var.get(),
+        'Draining Veins Pathway (Sinuses)': sinus_var.get(),
+        'Spetzler-Martin Grade': spetzler_grade_var.get(),
+        'Hemodynamic Status': hemodynamic_status_var.get(),
+        'Surgical Approach': 'Pterional craniotomy', 
+        'Proximity to Ventricle': ventricle_var.get(),
+        'Aneurysm Location': aneurysm_var.get(),
+        'Hemodynamic Status': 'Stable',  
+        'Nidus Configuration': 'Diffuse'  
+    }
+    
+    surgical_plan = avm_preoperative_planning(data)
+    
+    # New logic for risk and prognosis calculations
+    risks = calculate_risks_and_prognosis(data)
+
+    surgical_plan_text = "\n".join(surgical_plan['Surgical Plan'])
+   
+    risks_text = "\n".join([f"{key}: {value}%" for key, value in risks.items()])
+    
+    # Display recommendations and warnings in the canvas or text widget
+    recommendations_and_warnings_display.delete(1.0, tk.END)
+    recommendations_and_warnings_display.insert(tk.END, "Surgical Plan:\n")
+    recommendations_and_warnings_display.insert(tk.END, surgical_plan_text)
+    recommendations_and_warnings_display.insert(tk.END, "\n\nRisks:\n")
+    recommendations_and_warnings_display.insert(tk.END, risks_text)
+
+technical_constraints_options = [
+    'Neurological problems',
+    'Hemorrhage',
+    'Location near motor region',
+    'Location near speech region',
+    'Location near coordination region',
+    'Location near visual region',
+    'Infection',
+    'Cerebral edema',
+    'Seizures',
+    'Stroke',
+    'Blood clots',
+    'Deep vein thrombosis',
+    'Pulmonary embolism',
+    'Allergic reactions',
+    'Wound healing issues',
+    'Fluid and electrolyte imbalances',
+    'Cardiac complications',
+    'Respiratory complications'
+]
+    
+# Function to update branches based on selected segment
+def update_ica_branches(event):
+    selected_segment = ica_segment_var.get()
+    ica_branches_combobox['values'] = ica_branches[selected_segment]
+    ica_branches_combobox.current(0)
+
+def update_drains_to(event):
+    selected_sinus = sinus_var.get()
+    drains_to_combobox['values'] = sinuses_drainage[selected_sinus]
+    drains_to_combobox.current(0)
+
+def update_eca_subbranches(event):
+    selected_branch = eca_branch_var.get()
+    eca_subbranches_combobox['values'] = eca_subbranches[selected_branch]
+    eca_subbranches_combobox.current(0)
+    
+def update_locations(event):
+    selected_lobe = lobe_var.get()
+    location_combobox['values'] = locations[selected_lobe]
+    location_combobox.current(0)
+    
+def upload_image():
+    file_path = filedialog.askopenfilename()
+    if file_path:
+        image = Image.open(file_path)
+        photo = ImageTk.PhotoImage(image)
+        canvas.image = photo  # Keep a reference to avoid garbage collection
+        canvas.create_image(0, 0, anchor=tk.NW, image=photo)
+        canvas.config(scrollregion=canvas.bbox(tk.ALL))    
+        
+root = tk.Tk()
+root.title("AVM Resection Preoperative Planning")
+
+# Adjusting main window size
+root.geometry("1200x700")
+
+# Main canvas with scrollbars
+main_canvas = Canvas(root)
+main_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+
+main_scrollbar = ttk.Scrollbar(root, orient="vertical", command=main_canvas.yview)
+main_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+main_canvas.configure(yscrollcommand=main_scrollbar.set)
+main_canvas.bind('<Configure>', lambda e: main_canvas.configure(scrollregion=main_canvas.bbox("all")))
+
+main_frame = ttk.Frame(main_canvas)
+main_canvas.create_window((0, 0), window=main_frame, anchor="nw")
+
+# Frame divisions
+left_frame = ttk.Frame(main_frame)
+left_frame.grid(row=0, column=0, sticky="nsew", padx=(10, 5), pady=10)
+
+right_frame = ttk.Frame(main_frame)
+right_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 10), pady=10)
+
+# Image canvas on the left (2/3 of the window width)
+canvas = Canvas(left_frame, bg="white", width=800, height=600)
+canvas.pack(fill=tk.BOTH, expand=tk.TRUE)
+
+# Add vertical and horizontal scrollbars to the canvas
+vert_scrollbar = ttk.Scrollbar(left_frame, orient=tk.VERTICAL, command=canvas.yview)
+vert_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+canvas.config(yscrollcommand=vert_scrollbar.set)
+
+hori_scrollbar = ttk.Scrollbar(left_frame, orient=tk.HORIZONTAL, command=canvas.xview)
+hori_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+canvas.config(xscrollcommand=hori_scrollbar.set)
+
+# Image upload button
+upload_button = ttk.Button(left_frame, text="Upload Image", command=upload_image)
+upload_button.pack(pady=10)
+
+# Right side: all the widgets
+
+# Age Input
+age_frame = ttk.LabelFrame(right_frame, text="Patient Age", padding=(10, 5))
+age_frame.pack(fill=tk.X, pady=5)
+
+age_var = tk.StringVar()
+age_entry = ttk.Entry(age_frame, textvariable=age_var)
+age_entry.grid(row=0, column=0, padx=5, pady=5)
+ttk.Label(age_frame, text="years").grid(row=0, column=1, padx=5, pady=5)
+
+# Anatomic Location
+location_frame = ttk.LabelFrame(right_frame, text="Anatomic Location", padding=(10, 5))
+location_frame.pack(fill=tk.X, pady=5)
+
+lobes = ['Frontal', 'Parietal', 'Temporal', 'Occipital', 'Central']
+locations = {
+    'Frontal': ['Precentral gyrus', 'Superior frontal gyrus', 'Middle frontal gyrus', 'Inferior frontal gyrus'],
+    'Parietal': ['Postcentral gyrus', 'Superior parietal lobule', 'Inferior parietal lobule'],
+    'Temporal': ['Superior temporal gyrus', 'Middle temporal gyrus', 'Inferior temporal gyrus', 'Transverse temporal gyri'],
+    'Occipital': ['Superior occipital gyrus', 'Middle occipital gyrus', 'Inferior occipital gyrus'],
+    'Central': ['Cingulate gyrus', 'Paracentral lobule']
+}
+
+lobe_var = tk.StringVar()
+lobe_combobox = ttk.Combobox(location_frame, textvariable=lobe_var, values=lobes)
+lobe_combobox.grid(row=0, column=0, padx=5, pady=5)
+lobe_combobox.bind("<<ComboboxSelected>>", update_locations)
+
+location_var = tk.StringVar()
+location_combobox = ttk.Combobox(location_frame, textvariable=location_var)
+location_combobox.grid(row=0, column=1, padx=5, pady=5)
+
+# Feeding Arteries - Internal Carotid Artery
+ica_frame = ttk.LabelFrame(right_frame, text="Feeding Arteries - Internal Carotid Artery", padding=(10, 5))
+ica_frame.pack(fill=tk.X, pady=5)
+
+ica_segments = ['None','C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7']
+ica_segment_var = tk.StringVar()
+ica_segment_combobox = ttk.Combobox(ica_frame, textvariable=ica_segment_var, values=ica_segments)
+ica_segment_combobox.grid(row=0, column=0, padx=5, pady=5)
+ica_segment_combobox.bind("<<ComboboxSelected>>", update_ica_branches)
+
+ica_branches = {
+    'None': ['None'],
+    'C1': ['None'],
+    'C2': ['Caroticotympanic arteries', 'Artery of pterygoid canal'],
+    'C3': ['None'],
+    'C4': ['Tentorial basal branch', 'Tentorial marginal branch', 'Meningeal branch', 'Clivus branches', 'Inferior hypophyseal artery', 'Capsular branches'],
+    'C5': ['None'],
+    'C6': ['Ophthalmic artery', 'Superior hypophyseal artery'],
+    'C7': ['Posterior communicating artery', 'Anterior choroidal artery', 'Anterior cerebral artery', 'Middle cerebral artery']
+}
+ica_branch_var = tk.StringVar()
+ica_branches_combobox = ttk.Combobox(ica_frame, textvariable=ica_branch_var, values=ica_branches['C1'])
+ica_branches_combobox.grid(row=0, column=1, padx=5, pady=5)
+
+# Feeding Arteries - External Carotid Artery
+eca_frame = ttk.LabelFrame(right_frame, text="Feeding Arteries - External Carotid Artery", padding=(10, 5))
+eca_frame.pack(fill=tk.X, pady=5)
+
+eca_branches = [
+    'None',
+    'Superior thyroid artery',
+    'Ascending pharyngeal artery',
+    'Lingual artery',
+    'Facial artery',
+    'Occipital artery',
+    'Posterior auricular artery',
+    'Maxillary artery',
+    'Superficial temporal artery'
+]
+eca_subbranches = {
+    'None': ['None'],
+    'Superior thyroid artery': ['Infrahyoid branch', 'Sternomastoid branch', 'Superior laryngeal artery'],
+    'Ascending pharyngeal artery': ['Pharyngeal branches', 'Prevertebral branches', 'Meningeal branches'],
+    'Lingual artery': ['Suprahyoid branch', 'Dorsal linguae branches', 'Deep lingual artery'],
+    'Facial artery': ['Ascending palatine artery', 'Tonsillar branch', 'Submental artery', 'Inferior labial artery', 'Superior labial artery', 'Lateral nasal branch'],
+    'Occipital artery': ['Meningeal branch', 'Mastoid branch', 'Auricular branch', 'Descendant branch'],
+    'Posterior auricular artery': ['Stylomastoid branch', 'Auricular branches'],
+    'Maxillary artery': ['Middle meningeal artery', 'Anterior tympanic artery', 'Inferior alveolar artery', 'Masseteric artery', 'Pterygoid branches', 'Buccal artery', 'Posterior superior alveolar artery'],
+    'Superficial temporal artery': ['Transverse facial artery', 'Anterior auricular branches', 'Zygomaticoorbital artery', 'Frontal branch', 'Parietal branch']
+}
+
+eca_branch_var = tk.StringVar()
+eca_branch_combobox = ttk.Combobox(eca_frame, textvariable=eca_branch_var, values=eca_branches)
+eca_branch_combobox.grid(row=0, column=0, padx=5, pady=5)
+eca_branch_combobox.bind("<<ComboboxSelected>>", update_eca_subbranches)
+
+eca_subbranch_var = tk.StringVar()
+eca_subbranches_combobox = ttk.Combobox(eca_frame, textvariable=eca_subbranch_var)
+eca_subbranches_combobox.grid(row=0, column=1, padx=5, pady=5)
+
+# Draining Veins Pathway (Sinuses)
+sinuses_frame = ttk.LabelFrame(right_frame, text="Draining Veins Pathway (Sinuses)", padding=(10, 5))
+sinuses_frame.pack(fill=tk.X, pady=5)
+
+
+sinuses = [
+    'Sphenoparietal sinuses',
+    'Cavernous sinuses',
+    'Superior sagittal sinus',
+    'Inferior sagittal sinus',
+    'Straight sinus',
+    'Occipital sinus',
+    'Confluence of sinuses',
+    'Superior petrosal sinus',
+    'Transverse sinuses',
+    'Inferior petrosal sinus',
+    'Sigmoid sinuses'
+]
+sinuses_drainage = {
+    'Sphenoparietal sinuses': ['Cavernous sinuses'],
+    'Cavernous sinuses': ['Superior and inferior petrosal sinuses'],
+    'Superior sagittal sinus': ['Right transverse sinus', 'Confluence of sinuses'],
+    'Inferior sagittal sinus': ['Straight sinus'],
+    'Straight sinus': ['Left transverse sinus', 'Confluence of sinuses'],
+    'Occipital sinus': ['Confluence of sinuses'],
+    'Confluence of sinuses': ['Right and Left transverse sinuses'],
+    'Superior petrosal sinus': ['Transverse sinuses'],
+    'Transverse sinuses': ['Sigmoid sinus'],
+    'Inferior petrosal sinus': ['Internal jugular vein'],
+    'Sigmoid sinuses': ['Internal jugular vein']
+}
+
+sinus_var = tk.StringVar()
+sinus_combobox = ttk.Combobox(sinuses_frame, textvariable=sinus_var, values=sinuses)
+sinus_combobox.grid(row=0, column=0, padx=5, pady=5)
+sinus_combobox.bind("<<ComboboxSelected>>", update_drains_to)
+
+drains_to_var = tk.StringVar()
+drains_to_combobox = ttk.Combobox(sinuses_frame, textvariable=drains_to_var)
+drains_to_combobox.grid(row=0, column=1, padx=5, pady=5)
+
+# Surgical Approach
+surgical_approach_frame = ttk.LabelFrame(right_frame, text="Surgical Approach", padding=(10, 5))
+surgical_approach_frame.pack(fill=tk.X, pady=5)
+
+surgical_approaches = [
+    "Bifrontal craniotomy",
+    "Pterional craniotomy",
+    "Transsylvian approach",
+    "Occipital transtentorial approach",
+    "Occipital approach",
+    "Supracerebellar infratentorial approach",
+    "Interhemispheric approach",
+    "Transcallosal approach",
+    "Subtemporal approach",
+    "Transcortical approach"
+]
+surgical_approach_var = tk.StringVar()
+ttk.Combobox(surgical_approach_frame, textvariable=surgical_approach_var, values=surgical_approaches).grid(row=0, column=0, padx=5, pady=5)
+
+# Hemodynamic Status
+hemodynamic_frame = ttk.LabelFrame(right_frame, text="Hemodynamic Status", padding=(10, 5))
+hemodynamic_frame.pack(fill=tk.X, pady=5)
+
+hemodynamic_statuses = ["Stable", "Unstable"]
+hemodynamic_status_var = tk.StringVar()
+ttk.Combobox(hemodynamic_frame, textvariable=hemodynamic_status_var, values=hemodynamic_statuses).grid(row=0, column=0, padx=5, pady=5)
+
+# Nidus Configuration
+nidus_config_frame = ttk.LabelFrame(right_frame, text="Nidus Configuration", padding=(10, 5))
+nidus_config_frame.pack(fill=tk.X, pady=5)
+
+nidus_configs = ["Compact", "Diffuse"]
+nidus_configuration_var = tk.StringVar()
+ttk.Combobox(nidus_config_frame, textvariable=nidus_configuration_var, values=nidus_configs).grid(row=0, column=0, padx=5, pady=5)
+
+
+# Complications
+technical_frame = ttk.LabelFrame(right_frame, text="Additional factors", padding=(10, 5))
+technical_frame.pack(fill=tk.X, pady=5)
+
+listbox_complications = tk.Listbox(technical_frame, selectmode=tk.MULTIPLE, height=len(technical_constraints_options))
+for item in technical_constraints_options:
+    listbox_complications.insert(tk.END, item)
+listbox_complications.pack(padx=5, pady=5)
+
+# Spetzler-Martin Grade
+grade_frame = ttk.LabelFrame(right_frame, text="Spetzler-Martin Grade", padding=(10, 5))
+grade_frame.pack(fill=tk.X, pady=5)
+
+spetzler_grade_var = tk.StringVar()
+ttk.Combobox(grade_frame, textvariable=spetzler_grade_var, values=["I", "II", "III", "IV", "V"]).grid(row=0, column=0, padx=5, pady=5)
+
+
+ventricle_frame = ttk.LabelFrame(right_frame, text="Proximity to Ventricle", padding=(10, 5))
+ventricle_frame.pack(fill=tk.X, pady=5)
+
+ventricle_options = ["Not close", "Lateral ventricle", "Third ventricle", "Fourth ventricle"]
+ventricle_var = tk.StringVar()
+ttk.Combobox(ventricle_frame, textvariable=ventricle_var, values=ventricle_options).grid(row=0, column=0, padx=5, pady=5)
+
+
+# Aneurysm Location
+aneurysm_frame = ttk.LabelFrame(right_frame, text="Aneurysm Location", padding=(10, 5))
+aneurysm_frame.pack(fill=tk.X, pady=5)
+
+aneurysm_options = ["None", "Anterior communicating artery", "Middle cerebral artery", "Basilar tip", "Other locations"]
+aneurysm_var = tk.StringVar()
+ttk.Combobox(aneurysm_frame, textvariable=aneurysm_var, values=aneurysm_options).grid(row=0, column=0, padx=5, pady=5)
+
+# Add a text widget to display recommendations and warnings
+recommendations_and_warnings_display = tk.Text(right_frame, wrap=tk.WORD)
+recommendations_and_warnings_display.pack(pady=10, fill=tk.X)
+
+# Submit button
+submit_button = ttk.Button(right_frame, text="Submit", command=submit_data)
+submit_button.pack(pady=10)
+
+main_frame.grid_columnconfigure(0, weight=3)
+main_frame.grid_columnconfigure(1, weight=1)
+
+
+
+# Run the main loop
+root.mainloop()
